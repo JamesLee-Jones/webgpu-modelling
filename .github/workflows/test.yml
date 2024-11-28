@@ -1,0 +1,18 @@
+name: Test
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: setup
+        run:
+          ./scripts/setup.sh
+
+      - name: "run single_file tests"
+        run:
+          python3 ./scripts/check_all_single_file_tests.py ./AlloyModel/webgpu.als
