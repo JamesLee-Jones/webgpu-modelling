@@ -6,6 +6,9 @@ from typing import Set, List
 label_to_id_dict = None
 indent = 0
 
+def write_with_indent(output: str, file):
+    file.write((" " * indent) + output)
+
 def get_sig_from_instance(instance, label: str):
     for child in instance:
         if child.tag == "sig" and child.attrib["label"].endswith(label):
@@ -98,7 +101,7 @@ def generate_label_to_id_dict(instance):
 
 
 def generate_variable_decl(instance, variable_decl, output_file):
-    output_file.write(f"var<private> {ident_to_name(variable_decl)} : u32")
+    write_with_indent(f"var<private> {ident_to_name(variable_decl)} : u32", output_file)
     pass
 
 
@@ -108,7 +111,6 @@ def generate_expression(instance, expr_identifier, output_file):
 
 
 def generate_global_var_decl(instance, global_var_decl_identifier, output_file):
-    print(global_var_decl_identifier)
     # Find associated variable decl
     global_decl_parent_id = get_id_from_ident("GlobalVarDecl")
     var_decl_field = get_field_from_instance(instance, label="variable_decl", parent_id=global_decl_parent_id)
@@ -130,13 +132,13 @@ def generate_global_var_decl(instance, global_var_decl_identifier, output_file):
 
 
 def generate_if_statement(instance, statement_identifier, output_file):
-    output_file.write("  if (true) ")
+    write_with_indent("if (true) ", output_file)
     # TODO: Use compound statements for IfStatements
     generate_compound_statement(instance, statement_identifier, output_file)
 
 
 def generate_while_statement(instance, statement_identifier, output_file):
-    output_file.write("  while (true) ")
+    write_with_indent("while (true) ", output_file)
     generate_compound_statement(instance, statement_identifier, output_file)
 
 
@@ -151,6 +153,8 @@ def generate_statement(instance, statement_identifier, output_file):
 
 def generate_compound_statement(instance, parent_identifier, output_file):
     output_file.write("{\n")
+    global indent
+    indent += 2
     parent_id = get_id_from_ident(parent_identifier)
     compound_statement_field = get_field_from_instance(instance, label="compound_statement", parent_id=parent_id)
     compound_statement_tuple = find_tuples_by_key(compound_statement_field, parent_identifier)
@@ -165,7 +169,8 @@ def generate_compound_statement(instance, parent_identifier, output_file):
         statement_identifier = statement[2]
         generate_statement(instance, statement_identifier, output_file)
 
-    output_file.write("}\n")
+    indent -= 2
+    write_with_indent("}\n", output_file)
 
 
 def generate_function_decl(instance, function_decl_identifier, output_file):
@@ -181,7 +186,7 @@ def generate_function_decl(instance, function_decl_identifier, output_file):
     # Find the FunctionDecl's identifier
     function_ident = function_ident_tuple[0][1]
 
-    output_file.write(f"\nfn {ident_to_name(function_ident)} () ")
+    write_with_indent(f"fn {ident_to_name(function_ident)} () ", output_file)
     # Find associated compound statement
     generate_compound_statement(instance, function_decl_identifier, output_file)
 
