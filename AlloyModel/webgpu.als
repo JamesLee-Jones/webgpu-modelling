@@ -9,7 +9,7 @@ sig Ident {}
 
 // Every identifier belongs to something
 fact {
-  all i : Ident | lone (FunctionDecl <: ident).i + (VariableDecl <: ident).i
+  all i : Ident | one (FunctionDecl <: ident).i + (VariableDecl <: ident).i
 }
 
 ------------------------------------- Global Declerations -------------------------------------
@@ -60,6 +60,8 @@ fact {
   all e: Expression | one expression.e
 }
 
+------------------------------------- Compound Statement -------------------------------------
+
 // Represents a series of statments enclosed in curly braces.
 sig CompoundStatement {
   // TODO: Add attribute
@@ -68,19 +70,75 @@ sig CompoundStatement {
 
 // Each CompoundStatement is only in one place
 fact {
-  all c : CompoundStatement | one compound_statement.c
+  all c : CompoundStatement | 
+    one (FunctionDecl <: compound_statement).c +
+           (WhileStatement <: compound_statement).c +
+           (IfStatement <: if_compound_statement).c +
+           (IfStatement <: else_compound_statement).c +
+           univ.(IfStatement <: else_if_compound_statements).c
 }
+
+// Prevent compound statements from indirectly being their own parents.
+fact {
+  all c : CompoundStatement |
+     c -> c not in ^(reachableCompoundStatements)
+}
+
+// Map compound statements to the compound statements they contain.
+fun reachableCompoundStatements : CompoundStatement -> CompoundStatement {
+  { c1 : CompoundStatement, c2 : CompoundStatement | c2 in childCompoundStatements[c1]}
+}
+
+// Get the set of compound statements reachable from some parent compound statement.
+fun childCompoundStatements[c : one CompoundStatement] : CompoundStatement {
+  let s = c.statements.elems |  // Get the statements in the compound statement.
+    (s <: IfStatement).(if_compound_statement + else_compound_statement) +
+    (s <: IfStatement).else_if_compound_statements.elems +
+    (s <: WhileStatement).compound_statement 
+}
+
+------------------------------------------------------------------------------------------
+------------------------------------- Statement -------------------------------------
+------------------------------------------------------------------------------------------
 
 // Represents a statement.
 abstract sig Statement {}
 
+// There is only one instance of each Statement.
+fact {
+  all s : Statement | one statements.s
+}
+
+------------------------------------- IfStatement -------------------------------------
+
 sig IfStatement extends Statement {
   // TODO: Add expression (condition)
+  if_compound_statement: one CompoundStatement,
+  else_if_compound_statements: seq CompoundStatement,
+  else_compound_statement: lone CompoundStatement
 }
 
-// Each if statement is only in one place
+// Each compound statement is only in one if branch, this is implicit
+// in the grammar as it's impossible to write a program violating it.
 fact {
-  all if : IfStatement | one statements.if
+  // TODO: How can this be more cleanly expressed?
+  all c : CompoundStatement |
+     (lone if_compound_statement.c and no else_if_compound_statements.c and no else_compound_statement.c)
+     or (no if_compound_statement.c and lone else_if_compound_statements.c and no else_compound_statement.c)
+     or (no if_compound_statement.c and no else_if_compound_statements.c and lone else_compound_statement.c)
 }
 
-run example {}
+------------------------------------- WhileStatement -------------------------------------
+
+sig WhileStatement extends Statement {
+  // TODO: Add expression (condition)
+  compound_statement: CompoundStatement
+}
+
+run example {
+	some GlobalVarDecl
+	some FunctionDecl
+	some IfStatement
+    some else_if_compound_statements
+	some WhileStatement
+} for 20 but 1 TranslationUnit
